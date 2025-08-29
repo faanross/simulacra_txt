@@ -162,7 +162,7 @@ func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
 	if strings.HasPrefix(label, "m-") {
 		value = message.Manifest
 	} else {
-		// Find the specific chunk
+		// Find the specific chunk by direct lookup
 		for chunkName, chunkData := range message.Chunks {
 			if strings.Contains(chunkName, label) {
 				value = chunkData
@@ -358,6 +358,7 @@ func main() {
 	fmt.Printf("🧹 Cleanup: Every %v\n", *cleanInterval)
 	fmt.Println("\n✅ Server ready!")
 
+	// Start UDP server
 	dnsServer := &dns.Server{
 		Addr: *addr,
 		Net:  "udp",
