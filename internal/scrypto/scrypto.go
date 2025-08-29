@@ -3,6 +3,7 @@ package scrypto
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/faanross/simulacra_txt/internal/decoder"
 	"github.com/faanross/simulacra_txt/internal/spec"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/term"
