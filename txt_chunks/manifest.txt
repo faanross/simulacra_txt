@@ -1,0 +1,35 @@
+Message ID: 29962f5928a253e46f0290e92fe1b44f
+Total Chunks: 30
+Encoding: base32
+Created: 2025-08-29T08:55:28-04:00
+
+Chunk 000: txt_chunks/chunk_000.txt
+Chunk 001: txt_chunks/chunk_001.txt
+Chunk 002: txt_chunks/chunk_002.txt
+Chunk 003: txt_chunks/chunk_003.txt
+Chunk 004: txt_chunks/chunk_004.txt
+Chunk 005: txt_chunks/chunk_005.txt
+Chunk 006: txt_chunks/chunk_006.txt
+Chunk 007: txt_chunks/chunk_007.txt
+Chunk 008: txt_chunks/chunk_008.txt
+Chunk 009: txt_chunks/chunk_009.txt
+Chunk 010: txt_chunks/chunk_010.txt
+Chunk 011: txt_chunks/chunk_011.txt
+Chunk 012: txt_chunks/chunk_012.txt
+Chunk 013: txt_chunks/chunk_013.txt
+Chunk 014: txt_chunks/chunk_014.txt
+Chunk 015: txt_chunks/chunk_015.txt
+Chunk 016: txt_chunks/chunk_016.txt
+Chunk 017: txt_chunks/chunk_017.txt
+Chunk 018: txt_chunks/chunk_018.txt
+Chunk 019: txt_chunks/chunk_019.txt
+Chunk 020: txt_chunks/chunk_020.txt
+Chunk 021: txt_chunks/chunk_021.txt
+Chunk 022: txt_chunks/chunk_022.txt
+Chunk 023: txt_chunks/chunk_023.txt
+Chunk 024: txt_chunks/chunk_024.txt
+Chunk 025: txt_chunks/chunk_025.txt
+Chunk 026: txt_chunks/chunk_026.txt
+Chunk 027: txt_chunks/chunk_027.txt
+Chunk 028: txt_chunks/chunk_028.txt
+Chunk 029: txt_chunks/chunk_029.txt
