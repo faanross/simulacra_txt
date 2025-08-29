@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	dnsserver "github.com/faanross/simulacra_txt/internal/dns-server"
 	"github.com/miekg/dns"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -18,6 +20,57 @@ type DNSServerV2 struct {
 	addr    string
 	storage dnsserver.Storage
 	queue   *dnsserver.QueueManager
+}
+
+// HTTP API for uploads
+func (s *DNSServerV2) StartHTTPAPI(port string) {
+	http.HandleFunc("/upload", s.handleHTTPUpload)
+	http.HandleFunc("/status", s.handleStatus)
+
+	log.Printf("📡 HTTP API starting on port %s", port)
+	go http.ListenAndServe(":"+port, nil)
+}
+
+// handleHTTPUpload receives chunks via HTTP
+func (s *DNSServerV2) handleHTTPUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		MessageID string            `json:"message_id"`
+		Chunks    map[string]string `json:"chunks"`
+		Manifest  string            `json:"manifest"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Store the message
+	err := s.queue.PublishMessage(req.MessageID, req.Chunks, req.Manifest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("✅ Uploaded message %s via HTTP (%d chunks)", req.MessageID, len(req.Chunks))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":     "success",
+		"message_id": req.MessageID,
+		"chunks":     fmt.Sprintf("%d", len(req.Chunks)),
+	})
+}
+
+// handleStatus returns server status
+func (s *DNSServerV2) handleStatus(w http.ResponseWriter, r *http.Request) {
+	stats := s.storage.GetStats()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
 
 func NewDNSServerV2(domain, addr string, persistent bool) *DNSServerV2 {
@@ -237,6 +290,7 @@ func main() {
 
 	// Create server with storage backend
 	server := NewDNSServerV2(*domain, *addr, *persistent)
+	server.StartHTTPAPI("8080")
 
 	// Load zone file if provided
 	if *zoneFile != "" {
