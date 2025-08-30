@@ -60,7 +60,8 @@ func (s *DNSServerV2) handleHTTPUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store the message
-	err := s.queue.PublishMessage(req.MessageID, req.Chunks, req.Manifest)
+	err := s.queue.PublishMessage(req.MessageID, processedChunks, req.Manifest)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

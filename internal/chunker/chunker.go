@@ -43,8 +43,8 @@ const (
 	MAX_DNS_STRING_SIZE = 255
 
 	// SAFE_CHUNK_SIZE is our conservative limit
-	// We use 250 to leave room for DNS protocol overhead
-	SAFE_CHUNK_SIZE = 250
+	// We use 240 to leave room for DNS protocol overhead
+	SAFE_CHUNK_SIZE = 240
 
 	// METADATA_OVERHEAD is the fixed size of our chunk header
 	// Contains: Magic(4) + MessageID(16) + Sequence(2) + Total(2) + Checksum(4) = 28 bytes
@@ -68,9 +68,11 @@ const (
 	PROTOCOL_VERSION = 1
 )
 
-//var PAYLOAD_PER_CHUNK_B32 = int(float64(SAFE_CHUNK_SIZE-METADATA_OVERHEAD) / 1.6)
-
-var PAYLOAD_PER_CHUNK_B32 = int(math.Floor(float64(SAFE_CHUNK_SIZE-METADATA_OVERHEAD) / 1.6))
+// For base32, we need to account for encoding the ENTIRE chunk (metadata + payload)
+// Target: 250 bytes encoded total
+// Math: (METADATA_OVERHEAD + payload) * 1.6 = 250
+// Therefore: payload = (250/1.6) - METADATA_OVERHEAD
+var PAYLOAD_PER_CHUNK_B32 = int(math.Floor(float64(SAFE_CHUNK_SIZE)/1.6)) - METADATA_OVERHEAD
 
 // ================================================================================
 // LESSON: Chunk Structure Design
@@ -290,17 +292,23 @@ func (c *Chunker) encodeChunk(metadata ChunkMetadata, payload []byte) string {
 	fullChunk := append(metaBytes, payload...)
 
 	// Encode based on configuration
+	var encoded string
 	switch c.config.Encoding {
 	case ENCODE_HEX:
-		return hex.EncodeToString(fullChunk)
+		encoded = hex.EncodeToString(fullChunk)
 	case ENCODE_BASE32:
-		// Use base32 with DNS-safe alphabet (RFC 4648)
-		// No padding for cleaner DNS records
-		return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(fullChunk)
+		encoded = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(fullChunk)
 	default:
-		// Fallback to hex
-		return hex.EncodeToString(fullChunk)
+		encoded = hex.EncodeToString(fullChunk)
 	}
+
+	// SAFETY CHECK: Ensure we don't exceed DNS limits
+	if len(encoded) > MAX_DNS_STRING_SIZE {
+		panic(fmt.Sprintf("CRITICAL: Encoded chunk too large for DNS! Size: %d bytes (max: %d). Adjust PAYLOAD_PER_CHUNK_B32",
+			len(encoded), MAX_DNS_STRING_SIZE))
+	}
+
+	return encoded
 }
 
 // ================================================================================
