@@ -27,8 +27,85 @@ func (s *DNSServerV2) StartHTTPAPI(port string) {
 	http.HandleFunc("/upload", s.handleHTTPUpload)
 	http.HandleFunc("/status", s.handleStatus)
 
+	// NEW: Discovery endpoint for Host C
+	http.HandleFunc("/messages", s.handleGetMessages)
+	http.HandleFunc("/consume", s.handleConsumeMessage)
+
 	log.Printf("📡 HTTP API starting on port %s", port)
 	go http.ListenAndServe(":"+port, nil)
+}
+
+// NEW: handleGetMessages - Host C calls this to discover new messages
+func (s *DNSServerV2) handleGetMessages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get client ID from query param (default if not provided)
+	clientID := r.URL.Query().Get("client")
+	if clientID == "" {
+		clientID = "default-client"
+	}
+
+	// Get list of NEW messages (not yet delivered to this client)
+	messages, err := s.storage.GetNewMessages(clientID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Build simple response with just message IDs
+	var messageIDs []string
+	for _, msg := range messages {
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	// Mark these as delivered to this client
+	for _, msg := range messages {
+		s.storage.MarkAsDelivered(msg.ID, clientID)
+	}
+
+	log.Printf("📬 Client %s discovered %d new messages", clientID, len(messageIDs))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"client":   clientID,
+		"messages": messageIDs,
+		"count":    len(messageIDs),
+	})
+}
+
+// NEW: handleConsumeMessage - Host C calls this after successfully processing a message
+func (s *DNSServerV2) handleConsumeMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		MessageID string `json:"message_id"`
+		ClientID  string `json:"client_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Mark as consumed
+	err := s.storage.MarkAsConsumed(req.MessageID, req.ClientID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("✅ Message %s consumed by %s", req.MessageID, req.ClientID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "consumed",
+	})
 }
 
 // handleHTTPUpload receives chunks via HTTP

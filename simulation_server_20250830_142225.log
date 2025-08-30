@@ -1,0 +1,7 @@
+[2025-08-30 14:22:25.603] [SIMULATION] Server starting for 26-hour simulation
+[2025-08-30 14:22:25.603] [CONFIG] DNS: :5555, HTTP: 8080, Domain: covert.example.com
+[2025-08-30 14:22:25.603] [SIMULATION] Will run for 26h0m0s
+[2025-08-30 14:22:25.603] [DNS] Server starting on :5555
+[2025-08-30 14:22:25.603] [HTTP] API starting on port 8080
+[2025-08-30 14:22:25.603] [ERROR] DNS server failed: listen udp :5555: bind: address already in use
+[2025-08-30 14:22:25.604] [ERROR] HTTP server failed: listen tcp :8080: bind: address already in use

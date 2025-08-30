@@ -1,0 +1,5 @@
+[2025-08-30 14:23:06.424] [SIMULATION] Server starting for 26-hour simulation
+[2025-08-30 14:23:06.424] [CONFIG] DNS: :5555, HTTP: 8080, Domain: covert.example.com
+[2025-08-30 14:23:06.425] [SIMULATION] Will run for 26h0m0s
+[2025-08-30 14:23:06.425] [DNS] Server starting on :5555
+[2025-08-30 14:23:06.425] [HTTP] API starting on port 8080
