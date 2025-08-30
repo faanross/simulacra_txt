@@ -49,6 +49,16 @@ func (s *DNSServerV2) handleHTTPUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Process chunks to use simpler keys for lookup
+	processedChunks := make(map[string]string)
+	for chunkName, chunkData := range req.Chunks {
+		// Extract just the label part (e.g., "c-0-msgid" from "c-0-msgid.data.domain.com")
+		parts := strings.Split(chunkName, ".")
+		if len(parts) > 0 {
+			processedChunks[parts[0]] = chunkData
+		}
+	}
+
 	// Store the message
 	err := s.queue.PublishMessage(req.MessageID, req.Chunks, req.Manifest)
 	if err != nil {
@@ -124,13 +134,14 @@ func (s *DNSServerV2) handleTXT(q dns.Question, msg *dns.Msg, r *dns.Msg) {
 	}
 
 	// Regular chunk query
-	s.handleChunkQuery(qname, msg)
+	s.handleChunkQuery(qname, msg, q)
 }
 
-func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
+func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg, question dns.Question) {
 	// Try to find the chunk
 	parts := strings.Split(qname, ".")
 	if len(parts) < 2 {
+		msg.Rcode = dns.RcodeNameError
 		return
 	}
 
@@ -147,6 +158,7 @@ func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
 	}
 
 	if msgID == "" {
+		msg.Rcode = dns.RcodeNameError
 		return
 	}
 
@@ -154,6 +166,7 @@ func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
 	message, err := s.storage.GetMessage(msgID)
 	if err != nil {
 		log.Printf("Message %s not found", msgID)
+		msg.Rcode = dns.RcodeNameError
 		return
 	}
 
@@ -162,19 +175,19 @@ func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
 	if strings.HasPrefix(label, "m-") {
 		value = message.Manifest
 	} else {
-		// Find the specific chunk by direct lookup
-		for chunkName, chunkData := range message.Chunks {
-			if strings.Contains(chunkName, label) {
-				value = chunkData
-				break
-			}
+		// Direct lookup using the label as key
+		if chunkData, exists := message.Chunks[label]; exists {
+			value = chunkData
+		} else {
+			log.Printf("Chunk not found: %s (available: %v)", label, getChunkKeys(message.Chunks))
+
 		}
 	}
 
 	if value != "" {
 		rr := &dns.TXT{
 			Hdr: dns.RR_Header{
-				Name:   qname + ".",
+				Name:   question.Name, // Use the ORIGINAL question name
 				Rrtype: dns.TypeTXT,
 				Class:  dns.ClassINET,
 				Ttl:    300,
@@ -182,7 +195,11 @@ func (s *DNSServerV2) handleChunkQuery(qname string, msg *dns.Msg) {
 			Txt: []string{value},
 		}
 		msg.Answer = append(msg.Answer, rr)
-		log.Printf("Served: %s", qname)
+		msg.Rcode = dns.RcodeSuccess // Explicitly set success
+		log.Printf("Served: %s -> %d bytes", qname, len(value))
+	} else {
+		msg.Rcode = dns.RcodeNameError
+		log.Printf("No data found for: %s", qname)
 	}
 }
 
@@ -364,4 +381,12 @@ func main() {
 		Net:  "udp",
 	}
 	log.Fatal(dnsServer.ListenAndServe())
+}
+
+func getChunkKeys(chunks map[string]string) []string {
+	keys := make([]string, 0, len(chunks))
+	for k := range chunks {
+		keys = append(keys, k)
+	}
+	return keys
 }
